@@ -279,7 +279,12 @@ public class LevenshteinDistance implements EditDistance<Integer> {
                 upperLeft = upper;
             }
         }
-        return p[n];
+
+        if (p.length >= n) {
+            return p[n];
+        } else {
+            return -1;
+        }
     }
 
     /**
