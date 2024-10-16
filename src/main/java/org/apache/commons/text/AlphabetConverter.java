@@ -169,11 +169,7 @@ public final class AlphabetConverter {
                     originalToEncoded.put(originalLetter, originalLetterAsString);
                     encodedToOriginal.put(originalLetterAsString, originalLetterAsString);
                 } else {
-                    Integer next = it.next();
-
-                    while (doNotEncodeCopy.contains(next)) {
-                        next = it.next();
-                    }
+                    Integer next = checkNext(it, doNotEncodeCopy);
 
                     final String encodedLetter = codePointToString(next);
 
@@ -219,6 +215,16 @@ public final class AlphabetConverter {
                 doNotEncodeMap);
 
         return ac;
+    }
+
+    private static Integer checkNext(final Iterator<Integer> it, final Set<Integer> doNotEncodeCopy) {
+        Integer next = it.next();
+
+        while (doNotEncodeCopy.contains(next)) {
+            next = it.next();
+        }
+
+        return next;
     }
 
     /**
@@ -312,6 +318,7 @@ public final class AlphabetConverter {
      * @param originals original values
      * @param doNotEncodeMap map of values that should not be encoded
      */
+    //MAINTAINABILITY Issue 3
     private void addSingleEncoding(final int level,
                                    final String currentEncoding,
                                    final Collection<Integer> encoding,
@@ -325,8 +332,7 @@ public final class AlphabetConverter {
                 }
                 // this skips the doNotEncode chars if they are in the
                 // leftmost place
-                if (level != encodedLetterLength
-                        || !doNotEncodeMap.containsKey(encodingLetter)) {
+                if (checkCharsPosition(level, encodedLetterLength, encodingLetter, doNotEncodeMap)) {
                     addSingleEncoding(level - 1,
                             currentEncoding
                                     + codePointToString(encodingLetter),
@@ -359,6 +365,11 @@ public final class AlphabetConverter {
             encodedToOriginal.put(currentEncoding, originalLetterAsString);
         }
     }
+
+    private static boolean checkCharsPosition(int level, int encodedLetterLength, int encodingLetter, final Map<Integer, String> doNotEncodeMap) {
+        return level != encodedLetterLength || !doNotEncodeMap.containsKey(encodingLetter);
+    }
+
 
     /**
      * Decodes a given string.

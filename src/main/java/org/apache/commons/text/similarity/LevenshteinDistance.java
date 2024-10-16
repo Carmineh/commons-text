@@ -74,14 +74,10 @@ public class LevenshteinDistance implements EditDistance<Integer> {
      * @param threshold the target threshold, must not be negative
      * @return result distance, or -1
      */
-    private static <E> int limitedCompare(SimilarityInput<E> left, SimilarityInput<E> right, final int threshold) { // NOPMD
-        if (left == null || right == null) {
-            throw new IllegalArgumentException("CharSequences must not be null");
-        }
-        if (threshold < 0) {
-            throw new IllegalArgumentException("Threshold must not be negative");
-        }
 
+
+    //MAINTAINABILITY Issue 1 => DONE
+    private static <E> int limitedCompare(SimilarityInput<E> left, SimilarityInput<E> right, final int threshold) { // NOPMD
         /*
          * This implementation only computes the distance if it's less than or equal to the threshold value, returning -1 if it's greater. The advantage is
          * performance: unbounded distance is O(nm), but a bound of k allows us to reduce it to O(km) time by only computing a diagonal stripe of width 2k + 1
@@ -108,16 +104,16 @@ public class LevenshteinDistance implements EditDistance<Integer> {
          * See Algorithms on Strings, Trees and Sequences by Dan Gusfield for some discussion.
          */
 
+        validateInput(left, right, threshold);
+
         int n = left.length(); // length of left
         int m = right.length(); // length of right
 
         // if one string is empty, the edit distance is necessarily the length
         // of the other
-        if (n == 0) {
-            return m <= threshold ? m : -1;
-        }
-        if (m == 0) {
-            return n <= threshold ? n : -1;
+        int earlyMaxDistance = checkMaxDistance(n , m, threshold);
+        if (earlyMaxDistance != -1) {
+            return earlyMaxDistance;
         }
 
         if (n > m) {
@@ -165,16 +161,10 @@ public class LevenshteinDistance implements EditDistance<Integer> {
             int lowerBound = Integer.MAX_VALUE;
             // iterates through [min, max] in s
             for (int i = min; i <= max; i++) {
-                if (left.at(i - 1).equals(rightJ)) {
-                    // diagonally left and up
-                    d[i] = p[i - 1];
-                } else {
-                    // 1 + minimum of cell to the left, to the top, diagonally
-                    // left and up
-                    d[i] = 1 + Math.min(Math.min(d[i - 1], p[i]), p[i - 1]);
-                }
+                d[i] = calculateCellValue(left, p , d, rightJ, i);
                 lowerBound = Math.min(lowerBound, d[i]);
             }
+
             // if the lower bound is greater than the threshold, then exit early
             if (lowerBound > threshold) {
                 return -1;
@@ -193,6 +183,29 @@ public class LevenshteinDistance implements EditDistance<Integer> {
             return p[n];
         }
         return -1;
+    }
+
+    private static <E> void validateInput(SimilarityInput<E> left, SimilarityInput<E> right, final int threshold) {
+        if (left == null || right == null) {
+            throw new IllegalArgumentException("CharSequences must not be null");
+        }
+        if (threshold < 0) {
+            throw new IllegalArgumentException("Threshold must not be negative");
+        }
+    }
+
+    private static int checkMaxDistance(int n, int m, int threshold) {
+        if (n == 0) {
+            return m <= threshold ? m : -1;
+        }
+        if (m == 0) {
+            return n <= threshold ? n : -1;
+        }
+        return -1;
+    }
+
+    private static <E> int calculateCellValue(SimilarityInput<E> left, int[] p, int[] d, E rightJ, int i) {
+        return left.at(i - 1).equals(rightJ) ? p[i - 1] : 1 + Math.min(Math.min(d[i - 1], p[i]), p[i - 1]);
     }
 
     /**
@@ -280,12 +293,13 @@ public class LevenshteinDistance implements EditDistance<Integer> {
             }
         }
 
-        //Realiability Issue #1 - Probability of an ArrayIndexOutOfBound => SOLVED
-        if (p.length >= n) {
+        //Reliability Issue 1 => SOLVED
+        if (n >= 0 && n < p.length) {
             return p[n];
         } else {
-            return -1;
+            throw new ArrayIndexOutOfBoundsException("Index " + n + " is out of bounds for array length " + p.length);
         }
+
     }
 
     /**
