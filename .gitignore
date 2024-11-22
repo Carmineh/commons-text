@@ -18,4 +18,3 @@ site-content
 .project
 .externalToolBuilders
 /.checkstyle
-/.sonarlint/connectedMode.json

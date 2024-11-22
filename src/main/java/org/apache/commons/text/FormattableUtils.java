@@ -154,6 +154,7 @@ public class FormattableUtils {
      * instance to operate.</p>
      */
     public FormattableUtils() {
+        //this constructor is public to permit tools that require a JavaBean
     }
 
 }

@@ -138,8 +138,39 @@ public final class AlphabetConverter {
         final Map<String, String> encodedToOriginal = new LinkedHashMap<>();
         final Map<Integer, String> doNotEncodeMap = new HashMap<>();
 
+        validateDoNotEncodeList(originalCopy, encodingCopy, doNotEncodeCopy, doNotEncodeMap);
+
         final int encodedLetterLength;
 
+        if (encodingCopy.size() >= originalCopy.size()) {
+            encodedLetterLength = 1;
+            encodeWithSingleLetter(originalCopy, encodingCopy, doNotEncodeMap, originalToEncoded, encodedToOriginal);
+            return new AlphabetConverter(originalToEncoded, encodedToOriginal, encodedLetterLength);
+        }
+
+        if (encodingCopy.size() - doNotEncodeCopy.size() < 2) {
+            throw new IllegalArgumentException(
+                    "Must have at least two encoding characters (excluding "
+                            + "those in the 'do not encode' list), but has "
+                            + (encodingCopy.size() - doNotEncodeCopy.size()));
+        }
+
+        encodedLetterLength = calculateEncodedLetterLength(originalCopy, encodingCopy, doNotEncodeCopy);
+
+        final AlphabetConverter ac =
+                new AlphabetConverter(originalToEncoded, encodedToOriginal, encodedLetterLength);
+
+        ac.addSingleEncoding(encodedLetterLength,
+                StringUtils.EMPTY,
+                encodingCopy,
+                originalCopy.iterator(),
+                doNotEncodeMap);
+
+        return ac;
+    }
+
+    private static void validateDoNotEncodeList(Set<Integer> originalCopy, Set<Integer> encodingCopy,
+                                                Set<Integer> doNotEncodeCopy, Map<Integer, String> doNotEncodeMap) {
         for (final int i : doNotEncodeCopy) {
             if (!originalCopy.contains(i)) {
                 throw new IllegalArgumentException(
@@ -156,43 +187,36 @@ public final class AlphabetConverter {
 
             doNotEncodeMap.put(i, codePointToString(i));
         }
+    }
 
-        if (encodingCopy.size() >= originalCopy.size()) {
-            encodedLetterLength = 1;
+    private static void encodeWithSingleLetter(Set<Integer> originalCopy, Set<Integer> encodingCopy,
+                                               Map<Integer, String> doNotEncodeMap, Map<Integer, String> originalToEncoded,
+                                               Map<String, String> encodedToOriginal) {
+        final Iterator<Integer> it = encodingCopy.iterator();
 
-            final Iterator<Integer> it = encodingCopy.iterator();
+        for (final int originalLetter : originalCopy) {
+            final String originalLetterAsString = codePointToString(originalLetter);
 
-            for (final int originalLetter : originalCopy) {
-                final String originalLetterAsString = codePointToString(originalLetter);
+            if (doNotEncodeMap.containsKey(originalLetter)) {
+                originalToEncoded.put(originalLetter, originalLetterAsString);
+                encodedToOriginal.put(originalLetterAsString, originalLetterAsString);
+            } else {
+                Integer next = it.next();
 
-                if (doNotEncodeMap.containsKey(originalLetter)) {
-                    originalToEncoded.put(originalLetter, originalLetterAsString);
-                    encodedToOriginal.put(originalLetterAsString, originalLetterAsString);
-                } else {
-                    Integer next = checkNext(it, doNotEncodeCopy);
-
-                    final String encodedLetter = codePointToString(next);
-
-                    originalToEncoded.put(originalLetter, encodedLetter);
-                    encodedToOriginal.put(encodedLetter, originalLetterAsString);
+                while (doNotEncodeMap.containsKey(next)) {
+                    next = it.next();
                 }
+
+                final String encodedLetter = codePointToString(next);
+
+                originalToEncoded.put(originalLetter, encodedLetter);
+                encodedToOriginal.put(encodedLetter, originalLetterAsString);
             }
-
-            return new AlphabetConverter(originalToEncoded, encodedToOriginal, encodedLetterLength);
-
         }
-        if (encodingCopy.size() - doNotEncodeCopy.size() < 2) {
-            throw new IllegalArgumentException(
-                    "Must have at least two encoding characters (excluding "
-                            + "those in the 'do not encode' list), but has "
-                            + (encodingCopy.size() - doNotEncodeCopy.size()));
-        }
-        // we start with one which is our minimum, and because we do the
-        // first division outside the loop
+    }
+
+    private static int calculateEncodedLetterLength(Set<Integer> originalCopy, Set<Integer> encodingCopy, Set<Integer> doNotEncodeCopy) {
         int lettersSoFar = 1;
-
-        // the first division takes into account that the doNotEncode
-        // letters can't be in the leftmost place
         int lettersLeft = (originalCopy.size() - doNotEncodeCopy.size())
                 / (encodingCopy.size() - doNotEncodeCopy.size());
 
@@ -201,31 +225,9 @@ public final class AlphabetConverter {
             lettersSoFar++;
         }
 
-        encodedLetterLength = lettersSoFar + 1;
-
-        final AlphabetConverter ac =
-                new AlphabetConverter(originalToEncoded,
-                        encodedToOriginal,
-                        encodedLetterLength);
-
-        ac.addSingleEncoding(encodedLetterLength,
-                StringUtils.EMPTY,
-                encodingCopy,
-                originalCopy.iterator(),
-                doNotEncodeMap);
-
-        return ac;
+        return lettersSoFar + 1;
     }
 
-    private static Integer checkNext(final Iterator<Integer> it, final Set<Integer> doNotEncodeCopy) {
-        Integer next = it.next();
-
-        while (doNotEncodeCopy.contains(next)) {
-            next = it.next();
-        }
-
-        return next;
-    }
 
     /**
      * Creates an alphabet converter, for converting from the original alphabet,
@@ -318,7 +320,6 @@ public final class AlphabetConverter {
      * @param originals original values
      * @param doNotEncodeMap map of values that should not be encoded
      */
-    //MAINTAINABILITY Issue 3
     private void addSingleEncoding(final int level,
                                    final String currentEncoding,
                                    final Collection<Integer> encoding,
@@ -332,7 +333,8 @@ public final class AlphabetConverter {
                 }
                 // this skips the doNotEncode chars if they are in the
                 // leftmost place
-                if (checkCharsPosition(level, encodedLetterLength, encodingLetter, doNotEncodeMap)) {
+                if (level != encodedLetterLength
+                        || !doNotEncodeMap.containsKey(encodingLetter)) {
                     addSingleEncoding(level - 1,
                             currentEncoding
                                     + codePointToString(encodingLetter),
@@ -343,33 +345,34 @@ public final class AlphabetConverter {
                 }
             }
         } else {
-            Integer next = originals.next();
-
-            while (doNotEncodeMap.containsKey(next)) {
-                final String originalLetterAsString = codePointToString(next);
-
-                originalToEncoded.put(next, originalLetterAsString);
-                encodedToOriginal.put(originalLetterAsString,
-                        originalLetterAsString);
-
-                if (!originals.hasNext()) {
-                    return;
-                }
-
-                next = originals.next();
-            }
-
-            final String originalLetterAsString = codePointToString(next);
-
-            originalToEncoded.put(next, currentEncoding);
-            encodedToOriginal.put(currentEncoding, originalLetterAsString);
+            processOriginals(originals, doNotEncodeMap, currentEncoding);
         }
     }
 
-    private static boolean checkCharsPosition(int level, int encodedLetterLength, int encodingLetter, final Map<Integer, String> doNotEncodeMap) {
-        return level != encodedLetterLength || !doNotEncodeMap.containsKey(encodingLetter);
-    }
+    private void processOriginals(final Iterator<Integer> originals,
+                                  final Map<Integer, String> doNotEncodeMap,
+                                  final String currentEncoding) {
+        Integer next = originals.next();
 
+        while (doNotEncodeMap.containsKey(next)) {
+            final String originalLetterAsString = codePointToString(next);
+
+            originalToEncoded.put(next, originalLetterAsString);
+            encodedToOriginal.put(originalLetterAsString,
+                    originalLetterAsString);
+
+            if (!originals.hasNext()) {
+                return;
+            }
+
+            next = originals.next();
+        }
+
+        final String originalLetterAsString = codePointToString(next);
+
+        originalToEncoded.put(next, currentEncoding);
+        encodedToOriginal.put(currentEncoding, originalLetterAsString);
+    }
 
     /**
      * Decodes a given string.

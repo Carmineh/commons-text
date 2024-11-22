@@ -224,51 +224,61 @@ public class ExtendedMessageFormat extends MessageFormat {
         final char[] c = pattern.toCharArray();
         int fmtCount = 0;
         while (pos.getIndex() < pattern.length()) {
-            switch (c[pos.getIndex()]) {
-            case QUOTE:
+            char currentChar = c[pos.getIndex()];
+            if (currentChar == QUOTE) {
                 appendQuotedString(pattern, pos, stripCustom);
-                break;
-            case START_FE:
-                fmtCount++;
-                seekNonWs(pattern, pos);
-                final int start = pos.getIndex();
-                final int index = readArgumentIndex(pattern, next(pos));
-                stripCustom.append(START_FE).append(index);
-                seekNonWs(pattern, pos);
-                Format format = null;
-                String formatDescription = null;
-                if (c[pos.getIndex()] == START_FMT) {
-                    formatDescription = parseFormatDescription(pattern,
-                            next(pos));
-                    format = getFormat(formatDescription);
-                    if (format == null) {
-                        stripCustom.append(START_FMT).append(formatDescription);
-                    }
-                }
-                foundFormats.add(format);
-                foundDescriptions.add(format == null ? null : formatDescription);
-                if (foundFormats.size() != fmtCount) {
-                    throw new IllegalArgumentException("The validated expression is false");
-                }
-                if (foundDescriptions.size() != fmtCount) {
-                    throw new IllegalArgumentException("The validated expression is false");
-                }
-                if (c[pos.getIndex()] != END_FE) {
-                    throw new IllegalArgumentException(
-                            "Unreadable format element at position " + start);
-                }
-                //$FALL-THROUGH$
-            default:
-                stripCustom.append(c[pos.getIndex()]);
+            } else if (currentChar == START_FE) {
+                fmtCount = processFormatElement(pattern, foundFormats, foundDescriptions, stripCustom, pos, fmtCount);
+            } else {
+                stripCustom.append(currentChar);
                 next(pos);
             }
         }
-        super.applyPattern(stripCustom.toString());
+        finalizePattern(foundFormats, foundDescriptions, stripCustom.toString());
+    }
+
+    private int processFormatElement(final String pattern, final ArrayList<Format> foundFormats,
+                                     final ArrayList<String> foundDescriptions, final StringBuilder stripCustom,
+                                     final ParsePosition pos, int fmtCount) {
+        fmtCount++;
+        seekNonWs(pattern, pos);
+        final int start = pos.getIndex();
+        final int index = readArgumentIndex(pattern, next(pos));
+        stripCustom.append(START_FE).append(index);
+        seekNonWs(pattern, pos);
+        Format format = null;
+        String formatDescription = null;
+        if (pattern.charAt(pos.getIndex()) == START_FMT) {
+            formatDescription = parseFormatDescription(pattern, next(pos));
+            format = getFormat(formatDescription);
+            if (format == null) {
+                stripCustom.append(START_FMT).append(formatDescription);
+            }
+        }
+        foundFormats.add(format);
+        foundDescriptions.add(format == null ? null : formatDescription);
+        validateFormatElement(foundFormats, foundDescriptions, fmtCount, start, pattern, pos);
+        return fmtCount;
+    }
+
+    private void validateFormatElement(final ArrayList<Format> foundFormats, final ArrayList<String> foundDescriptions,
+                                       int fmtCount, int start, final String pattern, final ParsePosition pos) {
+        if (foundFormats.size() != fmtCount) {
+            throw new IllegalArgumentException("The validated expression is false");
+        }
+        if (foundDescriptions.size() != fmtCount) {
+            throw new IllegalArgumentException("The validated expression is false");
+        }
+        if (pattern.charAt(pos.getIndex()) != END_FE) {
+            throw new IllegalArgumentException("Unreadable format element at position " + start);
+        }
+    }
+
+    private void finalizePattern(final ArrayList<Format> foundFormats, final ArrayList<String> foundDescriptions, final String strippedPattern) {
+        super.applyPattern(strippedPattern);
         toPattern = insertFormats(super.toPattern(), foundDescriptions);
         if (containsElements(foundFormats)) {
             final Format[] origFormats = getFormats();
-            // only loop over what we know we have, as MessageFormat on Java 1.3
-            // seems to provide an extra format element:
             int i = 0;
             for (final Format f : foundFormats) {
                 if (f != null) {
@@ -469,9 +479,7 @@ public class ExtendedMessageFormat extends MessageFormat {
         for (; !error && pos.getIndex() < pattern.length(); next(pos)) {
             char c = pattern.charAt(pos.getIndex());
             if (Character.isWhitespace(c)) {
-                seekNonWs(pattern, pos);
-                c = pattern.charAt(pos.getIndex());
-                if (c != START_FMT && c != END_FE) {
+                if (!skipWhitespaceAndCheckPattern(pattern, pos)) {
                     error = true;
                     continue;
                 }
@@ -495,6 +503,13 @@ public class ExtendedMessageFormat extends MessageFormat {
         throw new IllegalArgumentException(
                 "Unterminated format element at position " + start);
     }
+
+    private boolean skipWhitespaceAndCheckPattern(final String pattern, final ParsePosition pos) {
+        seekNonWs(pattern, pos);
+        char c = pattern.charAt(pos.getIndex());
+        return c == START_FMT || c == END_FE;
+    }
+
 
     /**
      * Consumes whitespace from the current parse position.

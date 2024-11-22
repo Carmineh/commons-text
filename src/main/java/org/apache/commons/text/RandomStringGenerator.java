@@ -388,36 +388,46 @@ public final class RandomStringGenerator {
         Validate.isTrue(length > 0, "Length %d is smaller than zero.", length);
         final StringBuilder builder = new StringBuilder(length);
         long remaining = length;
-        do {
-            final int codePoint;
-            if (characterList != null && !characterList.isEmpty()) {
-                codePoint = generateRandomNumber(characterList);
-            } else {
-                codePoint = generateRandomNumber(minimumCodePoint, maximumCodePoint);
-            }
-            switch (Character.getType(codePoint)) {
-            case Character.UNASSIGNED:
-            case Character.PRIVATE_USE:
-            case Character.SURROGATE:
+        while (remaining > 0) {
+            final int codePoint = getCodePoint();
+            if (isInvalidCodePoint(codePoint)) {
                 continue;
-            default:
             }
-            if (inclusivePredicates != null) {
-                boolean matchedFilter = false;
-                for (final CharacterPredicate predicate : inclusivePredicates) {
-                    if (predicate.test(codePoint)) {
-                        matchedFilter = true;
-                        break;
-                    }
-                }
-                if (!matchedFilter) {
-                    continue;
-                }
+            if (inclusivePredicates != null && !matchesAnyPredicate(codePoint)) {
+                continue;
             }
             builder.appendCodePoint(codePoint);
             remaining--;
-        } while (remaining != 0);
+        }
         return builder.toString();
+    }
+
+    private int getCodePoint() {
+        if (characterList != null && !characterList.isEmpty()) {
+            return generateRandomNumber(characterList);
+        } else {
+            return generateRandomNumber(minimumCodePoint, maximumCodePoint);
+        }
+    }
+
+    private boolean isInvalidCodePoint(int codePoint) {
+        switch (Character.getType(codePoint)) {
+            case Character.UNASSIGNED:
+            case Character.PRIVATE_USE:
+            case Character.SURROGATE:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private boolean matchesAnyPredicate(int codePoint) {
+        for (final CharacterPredicate predicate : inclusivePredicates) {
+            if (predicate.test(codePoint)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
