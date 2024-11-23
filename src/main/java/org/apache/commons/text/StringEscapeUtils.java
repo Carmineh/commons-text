@@ -859,6 +859,7 @@ public class StringEscapeUtils {
      * instance to operate.</p>
      */
     public StringEscapeUtils() {
+        //This constructor is public to permit tools that require a JavaBean instance to operate
     }
 
 }
