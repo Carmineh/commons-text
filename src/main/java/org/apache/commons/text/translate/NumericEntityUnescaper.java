@@ -40,22 +40,22 @@ public class NumericEntityUnescaper extends CharSequenceTranslator {
         /**
          * Requires a semicolon.
          */
-        semiColonRequired,
+        SEMI_COLON_REQUIRED,
 
         /**
          * Does not require a semicolon.
          */
-        semiColonOptional,
+        SEMI_COLON_OPTIONAL,
 
         /**
          * Throws an exception if a semicolon is missing.
          */
-        errorIfNoSemiColon
+        ERROR_IF_NO_SEMI_COLON
     }
 
     /** Default options. */
     private static final EnumSet<OPTION> DEFAULT_OPTIONS = EnumSet
-        .copyOf(Collections.singletonList(OPTION.semiColonRequired));
+        .copyOf(Collections.singletonList(OPTION.SEMI_COLON_REQUIRED));
 
     /** EnumSet of OPTIONS, given from the constructor, read-only. */
     private final EnumSet<OPTION> options;
@@ -96,62 +96,86 @@ public class NumericEntityUnescaper extends CharSequenceTranslator {
     @Override
     public int translate(final CharSequence input, final int index, final Writer writer) throws IOException {
         final int seqEnd = input.length();
-        // Uses -2 to ensure there is something after the &#
         if (input.charAt(index) == '&' && index < seqEnd - 2 && input.charAt(index + 1) == '#') {
             int start = index + 2;
             boolean isHex = false;
 
-            final char firstChar = input.charAt(start);
-            if (firstChar == 'x' || firstChar == 'X') {
+            if (isHexPrefix(input, start)) {
                 start++;
                 isHex = true;
-
-                // Check there's more than just an x after the &#
                 if (start == seqEnd) {
                     return 0;
                 }
             }
 
-            int end = start;
-            // Note that this supports character codes without a ; on the end
-            while (end < seqEnd && (input.charAt(end) >= '0' && input.charAt(end) <= '9'
-                                    || input.charAt(end) >= 'a' && input.charAt(end) <= 'f'
-                                    || input.charAt(end) >= 'A' && input.charAt(end) <= 'F')) {
-                end++;
-            }
-
+            int end = findEndIndex(input, start, seqEnd);
             final boolean semiNext = end != seqEnd && input.charAt(end) == ';';
 
-            if (!semiNext) {
-                if (isSet(OPTION.semiColonRequired)) {
-                    return 0;
-                }
-                if (isSet(OPTION.errorIfNoSemiColon)) {
-                    throw new IllegalArgumentException("Semi-colon required at end of numeric entity");
-                }
-            }
-
-            final int entityValue;
-            try {
-                if (isHex) {
-                    entityValue = Integer.parseInt(input.subSequence(start, end).toString(), 16);
-                } else {
-                    entityValue = Integer.parseInt(input.subSequence(start, end).toString(), 10);
-                }
-            } catch (final NumberFormatException nfe) {
+            if (!semiNext && handleMissingSemicolon()) {
                 return 0;
             }
 
-            if (entityValue > 0xFFFF) {
-                final char[] chrs = Character.toChars(entityValue);
-                writer.write(chrs[0]);
-                writer.write(chrs[1]);
-            } else {
-                writer.write(entityValue);
+            final int entityValue = parseEntityValue(input, start, end, isHex);
+            if (entityValue == -1) {
+                return 0;
             }
 
-            return 2 + end - start + (isHex ? 1 : 0) + (semiNext ? 1 : 0);
+            writeEntityValue(writer, entityValue);
+            return calculateReturnLength(start, end, isHex, semiNext);
         }
         return 0;
+    }
+
+    private boolean isHexPrefix(final CharSequence input, int start) {
+        final char firstChar = input.charAt(start);
+        return firstChar == 'x' || firstChar == 'X';
+    }
+
+    private int findEndIndex(final CharSequence input, int start, int seqEnd) {
+        int end = start;
+        while (end < seqEnd && isValidEntityChar(input.charAt(end))) {
+            end++;
+        }
+        return end;
+    }
+
+    private boolean isValidEntityChar(char ch) {
+        return (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F');
+    }
+
+    private boolean handleMissingSemicolon() {
+        if (isSet(OPTION.SEMI_COLON_REQUIRED)) {
+            return true;
+        }
+        if (isSet(OPTION.ERROR_IF_NO_SEMI_COLON)) {
+            throw new IllegalArgumentException("Semi-colon required at end of numeric entity");
+        }
+        return false;
+    }
+
+    private int parseEntityValue(final CharSequence input, int start, int end, boolean isHex) {
+        try {
+            if (isHex) {
+                return Integer.parseInt(input.subSequence(start, end).toString(), 16);
+            } else {
+                return Integer.parseInt(input.subSequence(start, end).toString(), 10);
+            }
+        } catch (final NumberFormatException nfe) {
+            return -1;
+        }
+    }
+
+    private void writeEntityValue(final Writer writer, int entityValue) throws IOException {
+        if (entityValue > 0xFFFF) {
+            final char[] chrs = Character.toChars(entityValue);
+            writer.write(chrs[0]);
+            writer.write(chrs[1]);
+        } else {
+            writer.write(entityValue);
+        }
+    }
+
+    private int calculateReturnLength(int start, int end, boolean isHex, boolean semiNext) {
+        return 2 + end - start + (isHex ? 1 : 0) + (semiNext ? 1 : 0);
     }
 }

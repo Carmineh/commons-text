@@ -66,7 +66,7 @@ public class NumericEntityUnescaperTest  {
     @Test
     public void testUnfinishedEntity() {
         // parse it
-        NumericEntityUnescaper neu = new NumericEntityUnescaper(NumericEntityUnescaper.OPTION.semiColonOptional);
+        NumericEntityUnescaper neu = new NumericEntityUnescaper(NumericEntityUnescaper.OPTION.SEMI_COLON_OPTIONAL);
         String input = "Test &#x30 not test";
         String expected = "Test \u0030 not test";
 
@@ -82,7 +82,7 @@ public class NumericEntityUnescaperTest  {
         assertEquals(expected, result, "Failed to ignore unfinished entities (i.e. missing semicolon)");
 
         // fail it
-        neu = new NumericEntityUnescaper(NumericEntityUnescaper.OPTION.errorIfNoSemiColon);
+        neu = new NumericEntityUnescaper(NumericEntityUnescaper.OPTION.ERROR_IF_NO_SEMI_COLON);
         input = "Test &#x30 not test";
 
         try {

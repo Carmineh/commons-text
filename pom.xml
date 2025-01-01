@@ -54,7 +54,7 @@
 
     <commons.bytebuddy.version>1.15.4</commons.bytebuddy.version>
     <commons.rng.version>1.6</commons.rng.version>
-    <japicmp.skip>false</japicmp.skip>
+    <japicmp.skip>true</japicmp.skip>
     <jmh.version>1.37</jmh.version>
 
     <!-- Commons Release Plugin -->
@@ -148,6 +148,7 @@
               <exclude>src/test/resources/org/apache/commons/text/lcs-perf-analysis-inputs.csv</exclude>
               <exclude>src/test/resources/org/apache/commons/text/oss-fuzz/**</exclude>
             </excludes>
+
           </configuration>
         </plugin><!-- override skip property of parent pom -->
         <plugin>

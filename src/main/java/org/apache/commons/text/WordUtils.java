@@ -897,5 +897,6 @@ public class WordUtils {
      * instance to operate.</p>
      */
     public WordUtils() {
+        //Default constructor left intentionally empty.
     }
  }
