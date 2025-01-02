@@ -67,9 +67,7 @@ public class LevenshteinDetailedDistance implements EditDistance<LevenshteinResu
             int dataAtDiagonal = getDataAtDiagonal(matrix, rowIndex, columnIndex);
 
             // Break if we've reached the end of the matrix
-            if (isEndOfMatrix(dataAtLeft, dataAtTop, dataAtDiagonal)) {
-                break;
-            }
+            if (isEndOfMatrix(dataAtLeft, dataAtTop, dataAtDiagonal)) break;
 
             // Get current value in the matrix
             int data = matrix[rowIndex][columnIndex];
@@ -84,18 +82,12 @@ public class LevenshteinDetailedDistance implements EditDistance<LevenshteinResu
             // Handle delete, insert, or substitute operations
             if (isDeleteOperation(data, dataAtLeft, dataAtDiagonal, dataAtTop)) {
                 columnIndex--;
-                if (swapped) {
-                    addCount++;
-                } else {
-                    delCount++;
-                }
+                if (swapped) addCount++;
+                else delCount++;
             } else if (isInsertOperation(data, dataAtTop, dataAtDiagonal, dataAtLeft)) {
                 rowIndex--;
-                if (swapped) {
-                    delCount++;
-                } else {
-                    addCount++;
-                }
+                if (swapped) delCount++;
+                else addCount++;
             } else {
                 subCount++;
                 columnIndex--;
