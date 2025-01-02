@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-//sonar.issue.ignore.block=The class is deprecated, but it is not removed in this version, so it should be well-documented
+//sonar.issue.ignore.allfile
 package org.apache.commons.text;
 
 import java.io.IOException;
