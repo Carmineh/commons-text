@@ -18,3 +18,4 @@ site-content
 .project
 .externalToolBuilders
 /.checkstyle
+!/src/main/java/org/apache/commons/text/StrBuilder.java
