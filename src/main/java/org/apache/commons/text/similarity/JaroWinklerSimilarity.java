@@ -64,60 +64,78 @@ public class JaroWinklerSimilarity implements SimilarityScore<Double> {
      * @since 1.13.0
      */
     protected static <E> int[] matches(final SimilarityInput<E> first, final SimilarityInput<E> second) {
-        final SimilarityInput<E> max;
-        final SimilarityInput<E> min;
-        if (first.length() > second.length()) {
-            max = first;
-            min = second;
-        } else {
-            max = second;
-            min = first;
-        }
-        final int range = Math.max(max.length() / 2 - 1, 0);
-        final int[] matchIndexes = new int[min.length()];
-        Arrays.fill(matchIndexes, -1);
-        final boolean[] matchFlags = new boolean[max.length()];
-        int matches = 0;
-        for (int mi = 0; mi < min.length(); mi++) {
-            final E c1 = min.at(mi);
-            for (int xi = Math.max(mi - range, 0), xn = Math.min(mi + range + 1, max.length()); xi < xn; xi++) {
-                if (!matchFlags[xi] && c1.equals(max.at(xi))) {
-                    matchIndexes[mi] = xi;
-                    matchFlags[xi] = true;
-                    matches++;
-                    break;
-                }
-            }
-        }
-        final Object[] ms1 = new Object[matches];
-        final Object[] ms2 = new Object[matches];
-        for (int i = 0, si = 0; i < min.length(); i++) {
-            if (matchIndexes[i] != -1) {
-                ms1[si] = min.at(i);
-                si++;
-            }
-        }
-        for (int i = 0, si = 0; i < max.length(); i++) {
-            if (matchFlags[i]) {
-                ms2[si] = max.at(i);
-                si++;
-            }
-        }
-        int halfTranspositions = 0;
-        for (int mi = 0; mi < ms1.length; mi++) {
-            if (!ms1[mi].equals(ms2[mi])) {
-                halfTranspositions++;
-            }
-        }
-        int prefix = 0;
-        for (int mi = 0; mi < Math.min(4, min.length()); mi++) {
-            if (!first.at(mi).equals(second.at(mi))) {
+    final SimilarityInput<E> max = first.length() > second.length() ? first : second;
+    final SimilarityInput<E> min = first.length() > second.length() ? second : first;
+    final int range = Math.max(max.length() / 2 - 1, 0);
+    final int[] matchIndexes = new int[min.length()];
+    Arrays.fill(matchIndexes, -1);
+    final boolean[] matchFlags = new boolean[max.length()];
+    int matches = findMatches(min, max, range, matchIndexes, matchFlags);
+    final Object[] ms1 = extractMatches(min, matchIndexes, matches);
+    final Object[] ms2 = extractMatches(max, matchFlags, matches);
+    int halfTranspositions = countHalfTranspositions(ms1, ms2);
+    int prefix = countPrefix(first, second);
+    return new int[] { matches, halfTranspositions, prefix };
+}
+
+private static <E> int findMatches(SimilarityInput<E> min, SimilarityInput<E> max, int range, int[] matchIndexes, boolean[] matchFlags) {
+    int matches = 0;
+    for (int mi = 0; mi < min.length(); mi++) {
+        final E c1 = min.at(mi);
+        for (int xi = Math.max(mi - range, 0), xn = Math.min(mi + range + 1, max.length()); xi < xn; xi++) {
+            if (!matchFlags[xi] && c1.equals(max.at(xi))) {
+                matchIndexes[mi] = xi;
+                matchFlags[xi] = true;
+                matches++;
                 break;
             }
-            prefix++;
         }
-        return new int[] { matches, halfTranspositions, prefix };
     }
+    return matches;
+}
+
+private static <E> Object[] extractMatches(SimilarityInput<E> input, int[] matchIndexes, int matches) {
+    final Object[] ms = new Object[matches];
+    for (int i = 0, si = 0; i < input.length(); i++) {
+        if (matchIndexes[i] != -1) {
+            ms[si] = input.at(i);
+            si++;
+        }
+    }
+    return ms;
+}
+
+private static <E> Object[] extractMatches(SimilarityInput<E> input, boolean[] matchFlags, int matches) {
+    final Object[] ms = new Object[matches];
+    for (int i = 0, si = 0; i < input.length(); i++) {
+        if (matchFlags[i]) {
+            ms[si] = input.at(i);
+            si++;
+        }
+    }
+    return ms;
+}
+
+private static int countHalfTranspositions(Object[] ms1, Object[] ms2) {
+    int halfTranspositions = 0;
+    for (int mi = 0; mi < ms1.length; mi++) {
+        if (!ms1[mi].equals(ms2[mi])) {
+            halfTranspositions++;
+        }
+    }
+    return halfTranspositions;
+}
+
+private static <E> int countPrefix(SimilarityInput<E> first, SimilarityInput<E> second) {
+    int prefix = 0;
+    for (int mi = 0; mi < Math.min(4, first.length()); mi++) {
+        if (!first.at(mi).equals(second.at(mi))) {
+            break;
+        }
+        prefix++;
+    }
+    return prefix;
+}
 
     /**
      * Computes the Jaro Winkler Similarity between two character sequences.

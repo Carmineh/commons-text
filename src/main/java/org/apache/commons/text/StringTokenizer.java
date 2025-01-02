@@ -798,23 +798,11 @@ public class StringTokenizer implements ListIterator<String>, Cloneable {
             // encounter a non-quoted delimiter, or end of string
             if (quoting) {
                 // In quoting mode
-
-                // If we've found a quote character, see if it's
-                // followed by a second quote. If so, then we need
-                // to actually put the quote character into the token
-                // rather than end the token.
                 if (isQuote(srcChars, pos, len, quoteStart, quoteLen)) {
-                    if (isQuote(srcChars, pos + quoteLen, len, quoteStart, quoteLen)) {
-                        // matched pair of quotes, thus an escaped quote
-                        workArea.append(srcChars, pos, quoteLen);
-                        pos += quoteLen * 2;
-                        trimStart = workArea.size();
-                        continue;
-                    }
-
-                    // end of quoting
-                    quoting = false;
-                    pos += quoteLen;
+                    Result processedQuotes = processQuoting(srcChars, trimStart, pos, len, workArea, quoteStart, quoteLen);
+                    trimStart = processedQuotes.trimStart;
+                    pos = processedQuotes.pos;
+                    quoting = processedQuotes.quoting;
                     continue;
                 }
 
@@ -861,6 +849,28 @@ public class StringTokenizer implements ListIterator<String>, Cloneable {
         // return condition when end of string found
         addToken(tokenList, workArea.substring(0, trimStart));
         return -1;
+    }
+
+    private Result processQuoting(final char[] srcChars, int trimStart , int pos, final int len, final TextStringBuilder workArea,
+                                  final int quoteStart, final int quoteLen) {
+        // If we've found a quote character, see if it's
+        // followed by a second quote. If so, then we need
+        // to actually put the quote character into the token
+        // rather than end the token.
+        boolean quoting = true;
+        if (isQuote(srcChars, pos + quoteLen, len, quoteStart, quoteLen)) {
+            // matched pair of quotes, thus an escaped quote
+            workArea.append(srcChars, pos, quoteLen);
+            pos += quoteLen * 2;
+            trimStart = workArea.size();
+
+            return new Result(trimStart, pos, quoting);
+        }
+        // end of quoting
+        quoting = false;
+        pos += quoteLen;
+
+        return new Result(trimStart, pos, quoting);
     }
 
     /**
@@ -1136,4 +1146,26 @@ public class StringTokenizer implements ListIterator<String>, Cloneable {
         return "StringTokenizer" + getTokenList();
     }
 
+}
+/** A simple class to hold the results of a tokenization. */
+class Result {
+    /** The start of the trimmed token. */
+    int trimStart;
+    /** The end of the token. */
+    int pos;
+    /** Whether we are quoting. */
+    boolean quoting;
+
+    /**
+     * Constructs a new instance.
+     *
+     * @param trimStart  the start of the trimmed token
+     * @param pos  the end of the token
+     * @param quoting  whether we are quoting
+     */
+    Result(int trimStart, int pos, boolean quoting) {
+        this.trimStart = trimStart;
+        this.pos = pos;
+        this.quoting = quoting;
+    }
 }

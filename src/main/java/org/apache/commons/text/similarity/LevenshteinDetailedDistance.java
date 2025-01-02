@@ -50,10 +50,9 @@ public class LevenshteinDetailedDistance implements EditDistance<LevenshteinResu
      * @return result object containing the count of insert, delete and substitute and total count needed
      */
     private static <E> LevenshteinResults findDetailedResults(final SimilarityInput<E> left,
-                                                          final SimilarityInput<E> right,
-                                                          final int[][] matrix,
-                                                          final boolean swapped) {
-
+                                                              final SimilarityInput<E> right,
+                                                              final int[][] matrix,
+                                                              final boolean swapped) {
         int delCount = 0;
         int addCount = 0;
         int subCount = 0;
@@ -61,77 +60,74 @@ public class LevenshteinDetailedDistance implements EditDistance<LevenshteinResu
         int rowIndex = right.length();
         int columnIndex = left.length();
 
-        int dataAtLeft = 0;
-        int dataAtTop = 0;
-        int dataAtDiagonal = 0;
-        int data = 0;
-        boolean deleted = false;
-        boolean added = false;
-
         while (rowIndex >= 0 && columnIndex >= 0) {
+            // Get values from the matrix
+            int dataAtLeft = getDataAtLeft(matrix, rowIndex, columnIndex);
+            int dataAtTop = getDataAtTop(matrix, rowIndex, columnIndex);
+            int dataAtDiagonal = getDataAtDiagonal(matrix, rowIndex, columnIndex);
 
-            if (columnIndex == 0) {
-                dataAtLeft = -1;
-            } else {
-                dataAtLeft = matrix[rowIndex][columnIndex - 1];
-            }
-            if (rowIndex == 0) {
-                dataAtTop = -1;
-            } else {
-                dataAtTop = matrix[rowIndex - 1][columnIndex];
-            }
-            if (rowIndex > 0 && columnIndex > 0) {
-                dataAtDiagonal = matrix[rowIndex - 1][columnIndex - 1];
-            } else {
-                dataAtDiagonal = -1;
-            }
-            if (dataAtLeft == -1 && dataAtTop == -1 && dataAtDiagonal == -1) {
-                break;
-            }
-            data = matrix[rowIndex][columnIndex];
+            // Break if we've reached the end of the matrix
+            if (isEndOfMatrix(dataAtLeft, dataAtTop, dataAtDiagonal)) break;
 
-            // case in which the character at left and right are the same,
-            // in this case none of the counters will be incremented.
-            if (columnIndex > 0 && rowIndex > 0 && left.at(columnIndex - 1).equals(right.at(rowIndex - 1))) {
+            // Get current value in the matrix
+            int data = matrix[rowIndex][columnIndex];
+
+            // Check for character equality
+            if (areCharactersEqual(left, right, columnIndex, rowIndex)) {
                 columnIndex--;
                 rowIndex--;
                 continue;
             }
 
-            // handling insert and delete cases.
-            deleted = false;
-            added = false;
-            if (data - 1 == dataAtLeft && data <= dataAtDiagonal && data <= dataAtTop
-                    || dataAtDiagonal == -1 && dataAtTop == -1) { // NOPMD
+            // Handle delete, insert, or substitute operations
+            if (isDeleteOperation(data, dataAtLeft, dataAtDiagonal, dataAtTop)) {
                 columnIndex--;
-                if (swapped) {
-                    addCount++;
-                    added = true;
-                } else {
-                    delCount++;
-                    deleted = true;
-                }
-            } else if (data - 1 == dataAtTop && data <= dataAtDiagonal && data <= dataAtLeft
-                    || dataAtDiagonal == -1 && dataAtLeft == -1) { // NOPMD
+                if (swapped) addCount++;
+                else delCount++;
+            } else if (isInsertOperation(data, dataAtTop, dataAtDiagonal, dataAtLeft)) {
                 rowIndex--;
-                if (swapped) {
-                    delCount++;
-                    deleted = true;
-                } else {
-                    addCount++;
-                    added = true;
-                }
-            }
-
-            // substituted case
-            if (!added && !deleted) {
+                if (swapped) delCount++;
+                else addCount++;
+            } else {
                 subCount++;
                 columnIndex--;
                 rowIndex--;
             }
         }
+
         return new LevenshteinResults(addCount + delCount + subCount, addCount, delCount, subCount);
     }
+
+    private static int getDataAtLeft(int[][] matrix, int rowIndex, int columnIndex) {
+        return (columnIndex > 0) ? matrix[rowIndex][columnIndex - 1] : -1;
+    }
+
+    private static int getDataAtTop(int[][] matrix, int rowIndex, int columnIndex) {
+        return (rowIndex > 0) ? matrix[rowIndex - 1][columnIndex] : -1;
+    }
+
+    private static int getDataAtDiagonal(int[][] matrix, int rowIndex, int columnIndex) {
+        return (rowIndex > 0 && columnIndex > 0) ? matrix[rowIndex - 1][columnIndex - 1] : -1;
+    }
+
+    private static boolean isEndOfMatrix(int dataAtLeft, int dataAtTop, int dataAtDiagonal) {
+        return dataAtLeft == -1 && dataAtTop == -1 && dataAtDiagonal == -1;
+    }
+
+    private static boolean areCharactersEqual(SimilarityInput<?> left, SimilarityInput<?> right, int columnIndex, int rowIndex) {
+        return columnIndex > 0 && rowIndex > 0 && left.at(columnIndex - 1).equals(right.at(rowIndex - 1));
+    }
+
+    private static boolean isDeleteOperation(int data, int dataAtLeft, int dataAtDiagonal, int dataAtTop) {
+        return (data - 1 == dataAtLeft && data <= dataAtDiagonal && data <= dataAtTop)
+                || (dataAtDiagonal == -1 && dataAtTop == -1);
+    }
+
+    private static boolean isInsertOperation(int data, int dataAtTop, int dataAtDiagonal, int dataAtLeft) {
+        return (data - 1 == dataAtTop && data <= dataAtDiagonal && data <= dataAtLeft)
+                || (dataAtDiagonal == -1 && dataAtLeft == -1);
+    }
+
 
     /**
      * Gets the default instance.

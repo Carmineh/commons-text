@@ -76,6 +76,10 @@ import org.apache.commons.text.matcher.StringMatcher;
  */
 public class TextStringBuilder implements CharSequence, Appendable, Serializable, Builder<String> {
 
+    /** String to reduce reduntants string print about length. */
+    private static final String LENGTH_MUST_BE_VALID = "length must be valid";
+    /** String to reduce reduntants string print about start index. */
+    private static final String START_INDEX_MUST_BE_VALID = "startIndex must be valid";
     /**
      * Inner class to allow StrBuilder to operate as a reader.
      */
@@ -523,16 +527,17 @@ public class TextStringBuilder implements CharSequence, Appendable, Serializable
      * @return this, to enable chaining
      */
     public TextStringBuilder append(final CharBuffer buf, final int startIndex, final int length) {
+
         if (buf == null) {
             return appendNull();
         }
         if (buf.hasArray()) {
             final int totalLength = buf.remaining();
             if (startIndex < 0 || startIndex > totalLength) {
-                throw new StringIndexOutOfBoundsException("startIndex must be valid");
+                throw new StringIndexOutOfBoundsException(START_INDEX_MUST_BE_VALID);
             }
             if (length < 0 || startIndex + length > totalLength) {
-                throw new StringIndexOutOfBoundsException("length must be valid");
+                throw new StringIndexOutOfBoundsException(LENGTH_MUST_BE_VALID);
             }
             final int len = length();
             ensureCapacityInternal(len + length);
@@ -584,7 +589,7 @@ public class TextStringBuilder implements CharSequence, Appendable, Serializable
             return appendNull();
         }
         if (endIndex <= 0) {
-            throw new StringIndexOutOfBoundsException("endIndex must be valid");
+            throw new StringIndexOutOfBoundsException("endIdex must be valid");
         }
         if (startIndex >= endIndex) {
             throw new StringIndexOutOfBoundsException("endIndex must be greater than startIndex");
@@ -675,10 +680,10 @@ public class TextStringBuilder implements CharSequence, Appendable, Serializable
             return appendNull();
         }
         if (startIndex < 0 || startIndex > str.length()) {
-            throw new StringIndexOutOfBoundsException("startIndex must be valid");
+            throw new StringIndexOutOfBoundsException(START_INDEX_MUST_BE_VALID);
         }
         if (length < 0 || startIndex + length > str.length()) {
-            throw new StringIndexOutOfBoundsException("length must be valid");
+            throw new StringIndexOutOfBoundsException(LENGTH_MUST_BE_VALID);
         }
         if (length > 0) {
             final int len = length();
@@ -724,10 +729,10 @@ public class TextStringBuilder implements CharSequence, Appendable, Serializable
             return appendNull();
         }
         if (startIndex < 0 || startIndex > str.length()) {
-            throw new StringIndexOutOfBoundsException("startIndex must be valid");
+            throw new StringIndexOutOfBoundsException(START_INDEX_MUST_BE_VALID);
         }
         if (length < 0 || startIndex + length > str.length()) {
-            throw new StringIndexOutOfBoundsException("length must be valid");
+            throw new StringIndexOutOfBoundsException(LENGTH_MUST_BE_VALID);
         }
         if (length > 0) {
             final int len = length();
@@ -761,10 +766,10 @@ public class TextStringBuilder implements CharSequence, Appendable, Serializable
             return appendNull();
         }
         if (startIndex < 0 || startIndex > str.length()) {
-            throw new StringIndexOutOfBoundsException("startIndex must be valid");
+            throw new StringIndexOutOfBoundsException(START_INDEX_MUST_BE_VALID);
         }
         if (length < 0 || startIndex + length > str.length()) {
-            throw new StringIndexOutOfBoundsException("length must be valid");
+            throw new StringIndexOutOfBoundsException(LENGTH_MUST_BE_VALID);
         }
         if (length > 0) {
             final int len = length();
@@ -798,10 +803,10 @@ public class TextStringBuilder implements CharSequence, Appendable, Serializable
             return appendNull();
         }
         if (startIndex < 0 || startIndex > str.length()) {
-            throw new StringIndexOutOfBoundsException("startIndex must be valid");
+            throw new StringIndexOutOfBoundsException(START_INDEX_MUST_BE_VALID);
         }
         if (length < 0 || startIndex + length > str.length()) {
-            throw new StringIndexOutOfBoundsException("length must be valid");
+            throw new StringIndexOutOfBoundsException(LENGTH_MUST_BE_VALID);
         }
         if (length > 0) {
             final int len = length();
@@ -2456,30 +2461,34 @@ public class TextStringBuilder implements CharSequence, Appendable, Serializable
      * @return The last index of the string, or -1 if not found
      */
     public int lastIndexOf(final String str, int startIndex) {
-        startIndex = startIndex >= size ? size - 1 : startIndex;
-        if (str == null || startIndex < 0) {
-            return StringUtils.INDEX_NOT_FOUND;
-        }
-        final int strLen = str.length();
-        if (strLen > 0 && strLen <= size) {
-            if (strLen == 1) {
-                return lastIndexOf(str.charAt(0), startIndex);
-            }
-
-            outer: for (int i = startIndex - strLen + 1; i >= 0; i--) {
-                for (int j = 0; j < strLen; j++) {
-                    if (str.charAt(j) != buffer[i + j]) {
-                        continue outer;
-                    }
-                }
-                return i;
-            }
-
-        } else if (strLen == 0) {
-            return startIndex;
-        }
+    startIndex = Math.min(startIndex, size - 1);
+    if (str == null || startIndex < 0) {
         return StringUtils.INDEX_NOT_FOUND;
     }
+    final int strLen = str.length();
+    if (strLen == 0) {
+        return startIndex;
+    }
+    if (strLen == 1) {
+        return lastIndexOf(str.charAt(0), startIndex);
+    }
+    if (strLen > size) {
+        return StringUtils.INDEX_NOT_FOUND;
+    }
+    return findLastIndexOf(str, startIndex, strLen);
+}
+
+private int findLastIndexOf(final String str, int startIndex, final int strLen) {
+    outer: for (int i = startIndex - strLen + 1; i >= 0; i--) {
+        for (int j = 0; j < strLen; j++) {
+            if (str.charAt(j) != buffer[i + j]) {
+                continue outer;
+            }
+        }
+        return i;
+    }
+    return StringUtils.INDEX_NOT_FOUND;
+}
 
     /**
      * Searches the string builder using the matcher to find the last match.
