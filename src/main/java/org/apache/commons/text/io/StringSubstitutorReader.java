@@ -215,7 +215,7 @@ public class StringSubstitutorReader extends FilterReader {
         final StringMatcher prefixMatcher = stringSubstitutor.getVariablePrefixMatcher();
         int pos = 0;
         Triple<Integer, Integer, Integer> triple = findVariableStart(target, targetIndex,
-                targetLength, minReadLenPrefix, targetIndexIn, readCount, prefixMatcher);
+                targetLength, minReadLenPrefix, targetIndexIn, prefixMatcher);
         if (triple.getLeft() == null) {
             return triple.getRight();
         }
@@ -338,18 +338,18 @@ public class StringSubstitutorReader extends FilterReader {
     }
 
     private Triple<Integer, Integer, Integer> findVariableStart(final char[] target, int targetIndex, int targetLength, int minReadLenPrefix,
-                                                               int targetIndexIn, int readCount, final StringMatcher prefixMatcher) throws IOException {
+                                                               int targetIndexIn, final StringMatcher prefixMatcher) throws IOException {
         int balance = 0;
         int pos = 0;
         while (targetLength > 0) {
             if (isBufferMatchAt(prefixMatcher, 0)) {
-                Result res = balanceHandler(prefixMatcher, pos);
+                Result res = balanceHandler(prefixMatcher);
                 pos = res.pos;
                 balance = res.balance;
                 break;
             }
             if (isBufferMatchAt(prefixEscapeMatcher, 0)) {
-                Result res = balanceHandler(prefixMatcher, pos);
+                Result res = balanceHandler(prefixMatcher);
                 pos = res.pos;
                 balance = res.balance;
                 break;
@@ -359,7 +359,7 @@ public class StringSubstitutorReader extends FilterReader {
             targetIndex += drainCount;
             targetLength -= drainCount;
             if (buffer.size() < minReadLenPrefix) {
-                readCount = bufferOrDrainOnEos(minReadLenPrefix, target, targetIndex, targetLength);
+                int readCount = bufferOrDrainOnEos(minReadLenPrefix, target, targetIndex, targetLength);
                 if (checkEosOrDrain(eos, buffer)) {
                     // if draining, readCount is a drain count
                     int temp = drainHandler(readCount, buffer, targetIndex, targetIndexIn, targetLength);
@@ -382,9 +382,9 @@ public class StringSubstitutorReader extends FilterReader {
         return avail >= count ? 0 : count - avail;
     }
 
-    private Result balanceHandler(StringMatcher prefixMatcher, int pos) {
-        int balance = 1;
-        pos = prefixMatcher.size();
+    private Result balanceHandler(StringMatcher prefixMatcher) {
+        final int balance = 1;
+        final int pos = prefixMatcher.size();
         return new Result(balance, pos);
     }
 

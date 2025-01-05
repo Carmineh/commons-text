@@ -837,12 +837,12 @@ public class WordUtils {
             Pair<Integer, StringBuilder> wrapTempPairTwo = Pair.of(matcherSize, wrappedLine);
             Triple<String, Integer, Integer> wrapTempTriple = Triple.of(str, offset, inputLineLength);
             Pair<Integer, Integer> wrapResults = handleWrapWords(wrapTempPair, wrapTempPairTwo, wrapTempTriple,
-                    newLineStr, wrapLength, patternToWrapOn, matcher);
+                    newLineStr, wrapLength, patternToWrapOn);
             offset = wrapResults.getLeft();
             matcherSize = wrapResults.getRight();
         }
 
-        offset = checkOffset(inputLineLength, offset, str, matcherSize);
+        offset = checkOffset(inputLineLength, offset, matcherSize);
 
 
         // Whatever is left in line is short enough to just pass through
@@ -894,7 +894,7 @@ public class WordUtils {
 
     private static Pair<Integer, Integer> handleWrapWords(Pair<Boolean, Integer> wrapPair, Pair<Integer, StringBuilder> wrapPairTwo,
                                                                     Triple<String, Integer, Integer> wrapTripleTemp, String newLineStr,
-                                                                     final int wrapLength, final Pattern patternToWrapOn, Matcher matcher) {
+                                                                     final int wrapLength, final Pattern patternToWrapOn) {
         boolean wrapLongWords = wrapPair.getLeft();
         int spaceToWrapAt = wrapPair.getRight();
         StringBuilder wrappedLine = wrapPairTwo.getRight();
@@ -912,7 +912,7 @@ public class WordUtils {
                 matcherSize = result.getRight();
             } else {
                 // do not wrap really long word, just extend beyond limit
-                matcher = patternToWrapOn.matcher(str.substring(offset + wrapLength));
+                Matcher matcher = patternToWrapOn.matcher(str.substring(offset + wrapLength));
                 if (matcher.find()) {
                     matcherSize = matcher.end() - matcher.start();
                     spaceToWrapAt = matcher.start() + offset + wrapLength;
@@ -948,7 +948,7 @@ public class WordUtils {
         return newLineStr;
     }
 
-    private static int checkOffset(int inputLineLength, int offset,  String str, final int matcherSize) {
+    private static int checkOffset(int inputLineLength, int offset, final int matcherSize) {
         if (matcherSize == 0 && offset < inputLineLength) {
             offset--;
         }
