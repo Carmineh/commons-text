@@ -1408,6 +1408,7 @@ public class StringSubstitutor {
      * @throws IllegalArgumentException if variable is not found and <pre>isEnableUndefinedVariableException()==true</pre>
      * @since 1.9
      */
+    //DA FARE I BENCHMARK
     private Result substitute(final TextStringBuilder builder, final int offset, final int length,
         List<String> priorVariables) {
         Objects.requireNonNull(builder, "builder");
@@ -1585,4 +1586,6 @@ public class StringSubstitutor {
             .toString();
         // @formatter:on
     }
+
+
 }

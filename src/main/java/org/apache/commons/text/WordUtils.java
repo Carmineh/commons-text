@@ -25,6 +25,8 @@ import java.util.regex.Pattern;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 
 /**
  * Operations on Strings that contain words.
@@ -796,15 +798,10 @@ public class WordUtils {
         if (str == null) {
             return null;
         }
-        if (newLineStr == null) {
-            newLineStr = System.lineSeparator();
-        }
-        if (wrapLength < 1) {
-            wrapLength = 1;
-        }
-        if (StringUtils.isBlank(wrapOn)) {
-            wrapOn = " ";
-        }
+        newLineStr = checkNewLineStr(newLineStr);
+        wrapLength = chekWrapLength(wrapLength);
+        wrapOn = checkWrapOn(wrapOn);
+
         final Pattern patternToWrapOn = Pattern.compile(wrapOn);
         final int inputLineLength = str.length();
         int offset = 0;
@@ -835,23 +832,72 @@ public class WordUtils {
             while (matcher.find()) {
                 spaceToWrapAt = matcher.start() + offset;
             }
+            Pair<Integer, Integer> wrapResults = handleWrapWords(wrapLongWords, spaceToWrapAt, matcherSize, wrappedLine, str, offset, inputLineLength, newLineStr, wrapLength, patternToWrapOn, matcher);
+            offset = wrapResults.getLeft();
+            matcherSize = wrapResults.getRight();
+        }
 
-            if (spaceToWrapAt >= offset) {
-                // normal case
-                wrappedLine.append(str, offset, spaceToWrapAt);
-                wrappedLine.append(newLineStr);
-                offset = spaceToWrapAt + 1;
+        offset = checkOffset(inputLineLength, offset, str, matcherSize);
 
-            } else // really long word or URL
+
+        // Whatever is left in line is short enough to just pass through
+        wrappedLine.append(str, offset, str.length());
+
+        return wrappedLine.toString();
+    }
+
+    private static Pair<Integer, Integer> handleLongWords(int matcherSize, StringBuilder wrappedLine, String str,
+                                                          int offset, int wrapLength, String newLineStr) {
+        if (matcherSize == 0) {
+            offset--;
+        }
+        wrappedLine.append(str, offset, wrapLength + offset);
+        wrappedLine.append(newLineStr);
+        offset += wrapLength;
+        matcherSize = -1;
+
+        return Pair.of(offset, matcherSize);
+    }
+
+    private static Pair<Integer, Integer> handleReallyLongWords(final int spaceToWrapAt, int matcherSize, StringBuilder wrappedLine, String str,
+                                                                int offset, final int inputLineLength, final String newLineStr) {
+        if (spaceToWrapAt >= 0) {
+            if (matcherSize == 0 && offset != 0) {
+                offset--;
+            }
+            wrappedLine.append(str, offset, spaceToWrapAt);
+            wrappedLine.append(newLineStr);
+            offset = spaceToWrapAt + 1;
+        } else {
+            if (matcherSize == 0 && offset != 0) {
+                offset--;
+            }
+            wrappedLine.append(str, offset, str.length());
+            offset = inputLineLength;
+            matcherSize = -1;
+        }
+        return Pair.of(offset, matcherSize);
+    }
+
+    private static int handleNormalCase(int spaceToWrapAt, StringBuilder wrappedLine,
+                                        String str, int offset, String newLineStr) {
+        wrappedLine.append(str, offset, spaceToWrapAt);
+        wrappedLine.append(newLineStr);
+        offset = spaceToWrapAt + 1;
+        return offset;
+    }
+
+    private static Pair<Integer, Integer> handleWrapWords(boolean wrapLongWords, int spaceToWrapAt, int matcherSize, StringBuilder wrappedLine,
+                                                                     String str, int offset, final int inputLineLength, String newLineStr,
+                                                                     final int wrapLength, final Pattern patternToWrapOn, Matcher matcher) {
+        if (spaceToWrapAt >= offset) {
+            // normal case
+            offset = handleNormalCase(spaceToWrapAt, wrappedLine, str, offset, newLineStr);
+        } else  // really long word or URL
             if (wrapLongWords) {
-                if (matcherSize == 0) {
-                    offset--;
-                }
-                // wrap really long word one line at a time
-                wrappedLine.append(str, offset, wrapLength + offset);
-                wrappedLine.append(newLineStr);
-                offset += wrapLength;
-                matcherSize = -1;
+                Pair<Integer, Integer> result = handleLongWords(matcherSize, wrappedLine, str, offset, wrapLength, newLineStr);
+                offset = result.getLeft();
+                matcherSize = result.getRight();
             } else {
                 // do not wrap really long word, just extend beyond limit
                 matcher = patternToWrapOn.matcher(str.substring(offset + wrapLength));
@@ -860,32 +906,42 @@ public class WordUtils {
                     spaceToWrapAt = matcher.start() + offset + wrapLength;
                 }
 
-                if (spaceToWrapAt >= 0) {
-                    if (matcherSize == 0 && offset != 0) {
-                        offset--;
-                    }
-                    wrappedLine.append(str, offset, spaceToWrapAt);
-                    wrappedLine.append(newLineStr);
-                    offset = spaceToWrapAt + 1;
-                } else {
-                    if (matcherSize == 0 && offset != 0) {
-                        offset--;
-                    }
-                    wrappedLine.append(str, offset, str.length());
-                    offset = inputLineLength;
-                    matcherSize = -1;
-                }
+                Pair<Integer, Integer> wrapResult = handleReallyLongWords(spaceToWrapAt, matcherSize, wrappedLine, str, offset, inputLineLength, newLineStr);
+                offset = wrapResult.getLeft();
+                matcherSize = wrapResult.getRight();
             }
-        }
 
+
+        return Pair.of(offset, matcherSize);
+    }
+
+     private static String checkWrapOn(String wrapOn) {
+        if (wrapOn == null) {
+            wrapOn = " ";
+        }
+        return wrapOn;
+    }
+
+    private static int chekWrapLength(int wrapLength) {
+        if (wrapLength < 1) {
+            wrapLength = 1;
+        }
+        return wrapLength;
+    }
+
+    private static String checkNewLineStr(String newLineStr) {
+        if (newLineStr == null) {
+            return System.lineSeparator();
+        }
+        return newLineStr;
+    }
+
+    private static int checkOffset(int inputLineLength, int offset,  String str, final int matcherSize) {
         if (matcherSize == 0 && offset < inputLineLength) {
             offset--;
         }
 
-        // Whatever is left in line is short enough to just pass through
-        wrappedLine.append(str, offset, str.length());
-
-        return wrappedLine.toString();
+        return offset;
     }
 
     /**
