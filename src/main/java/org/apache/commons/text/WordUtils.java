@@ -832,7 +832,12 @@ public class WordUtils {
             while (matcher.find()) {
                 spaceToWrapAt = matcher.start() + offset;
             }
-            Pair<Integer, Integer> wrapResults = handleWrapWords(wrapLongWords, spaceToWrapAt, matcherSize, wrappedLine, str, offset, inputLineLength, newLineStr, wrapLength, patternToWrapOn, matcher);
+
+            Pair<Boolean , Integer> wrapTempPair = Pair.of(wrapLongWords, spaceToWrapAt);
+            Pair<Integer, StringBuilder> wrapTempPairTwo = Pair.of(matcherSize, wrappedLine);
+            Triple<String, Integer, Integer> wrapTempTriple = Triple.of(str, offset, inputLineLength);
+            Pair<Integer, Integer> wrapResults = handleWrapWords(wrapTempPair, wrapTempPairTwo, wrapTempTriple,
+                    newLineStr, wrapLength, patternToWrapOn, matcher);
             offset = wrapResults.getLeft();
             matcherSize = wrapResults.getRight();
         }
@@ -887,9 +892,16 @@ public class WordUtils {
         return offset;
     }
 
-    private static Pair<Integer, Integer> handleWrapWords(boolean wrapLongWords, int spaceToWrapAt, int matcherSize, StringBuilder wrappedLine,
-                                                                     String str, int offset, final int inputLineLength, String newLineStr,
+    private static Pair<Integer, Integer> handleWrapWords(Pair<Boolean, Integer> wrapPair, Pair<Integer, StringBuilder> wrapPairTwo,
+                                                                    Triple<String, Integer, Integer> wrapTripleTemp, String newLineStr,
                                                                      final int wrapLength, final Pattern patternToWrapOn, Matcher matcher) {
+        boolean wrapLongWords = wrapPair.getLeft();
+        int spaceToWrapAt = wrapPair.getRight();
+        StringBuilder wrappedLine = wrapPairTwo.getRight();
+        int matcherSize = wrapPairTwo.getLeft();
+        String str = wrapTripleTemp.getLeft();
+        int offset = wrapTripleTemp.getMiddle();
+        int inputLineLength = wrapTripleTemp.getRight();
         if (spaceToWrapAt >= offset) {
             // normal case
             offset = handleNormalCase(spaceToWrapAt, wrappedLine, str, offset, newLineStr);

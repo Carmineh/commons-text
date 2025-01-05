@@ -31,7 +31,7 @@ import org.openjdk.jmh.annotations.Warmup;
 /**
  * BenchmarkRunner is used to test the performance of the wrap method from the WorldUtils class.
  */
-@Fork(1)
+@Fork(value = 0)
 @Warmup(iterations = BenchmarkRunner.WARMUP_ITERATIONS)
 @Measurement(iterations = BenchmarkRunner.ITERATIONS)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
@@ -40,16 +40,24 @@ public class BenchmarkRunner {
     static final int ITERATIONS = 5;
     /** The number of warmup iterations to run the benchmark. */
     static final int WARMUP_ITERATIONS = 3;
+    /** The length of the string to wrap. */
+    static final int WRAP_LENGTH = 20;
 
     /**
      * State for testing Really Long Strings that are not wrapped.
+     *
      */
     @State(Scope.Thread)
     public static class ReallyLongStringState {
+        /** Really long string that is not wrapped.  */
         String reallyLongString = "Click here, https://commons.apache.org, to jump to the commons website";
-        int wrapLength = 20;
+        /** Wrap length is greater than the string length.  */
+        int wrapLength = WRAP_LENGTH;
+        /** New line string.  */
         String newLineStr = "\n";
-        boolean wrapLongWords = false; // Ensures the string is not wrapped.
+        /** Ensures the string is not wrapped.  */
+        boolean wrapLongWords;
+        /** Wrap on space.  */
         String wrapOn = " ";
     }
     /**
@@ -57,10 +65,15 @@ public class BenchmarkRunner {
      */
     @State(Scope.Thread)
     public static class LongStringState {
+        /** Long string that will be wrapped.  */
         String longString = "Click here to jump to the commons website - https://commons.apache.org";
-        int wrapLength = 20;
+        /** Wrap length is greater than the string length.  */
+        int wrapLength = WRAP_LENGTH;
+        /** New line string.  */
         String newLineStr = "\n";
-        boolean wrapLongWords = true; // Allows wrapping even within long words.
+        /** Ensures the string is wrapped.  */
+        boolean wrapLongWords = true;
+        /** Wrap on space.  */
         String wrapOn = " ";
     }
 
@@ -69,10 +82,15 @@ public class BenchmarkRunner {
      */
     @State(Scope.Thread)
     public static class NormalStringState {
+        /** Normal string that fits within the wrap length.  */
         String normalString = "Here is one line of text that is going to be wrapped after 20 columns.";
-        int wrapLength = 20; // Wrap length is greater than the string length.
+        /** Wrap length is greater than the string length.  */
+        int wrapLength = WRAP_LENGTH;
+        /** New line string.  */
         String newLineStr = "\n";
+        /** Ensures the string is wrapped.  */
         boolean wrapLongWords = true;
+        /** Wrap on space.  */
         String wrapOn = " ";
     }
 

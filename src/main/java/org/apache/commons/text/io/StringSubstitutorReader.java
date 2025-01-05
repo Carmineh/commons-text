@@ -21,6 +21,8 @@ import java.io.FilterReader;
 import java.io.IOException;
 import java.io.Reader;
 
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.commons.text.StringSubstitutor;
 import org.apache.commons.text.TextStringBuilder;
 import org.apache.commons.text.matcher.StringMatcher;
@@ -179,7 +181,7 @@ public class StringSubstitutorReader extends FilterReader {
         // - if draining, drain until empty or target length hit
         // - copy to target until we find a variable start
         // - buffer until a balanced suffix is read, then substitute.
-        if (eos && buffer.isEmpty()) {
+        if (checkEosAndBuffer(eos, buffer)) {
             return EOS;
         }
         if (targetLengthIn <= 0) {
@@ -189,70 +191,36 @@ public class StringSubstitutorReader extends FilterReader {
         // drain check
         int targetIndex = targetIndexIn;
         int targetLength = targetLengthIn;
-        if (isDraining()) {
-            // drain as much as possible
-            final int drainCount = drain(target, targetIndex, Math.min(toDrain, targetLength));
-            if (drainCount == targetLength) {
-                // drained length requested, target is full, can only do more in the next invocation
-                return targetLength;
-            }
-            // drained less than requested, target not full.
-            targetIndex += drainCount;
-            targetLength -= drainCount;
+        Pair<Integer, Integer> pair = isDrainingHandler(targetIndex, targetLength, target);
+        if (pair.getLeft() == null) {
+            return pair.getRight();
         }
+        targetIndex = pair.getLeft();
+        targetLength = pair.getRight();
         // BUFFER from the underlying reader
         final int minReadLenPrefix = prefixEscapeMatcher.size();
         // READ enough to test for an [optionally escaped] variable start
         int readCount = buffer(readCount(minReadLenPrefix, 0));
         if (buffer.length() < minReadLenPrefix && targetLength < minReadLenPrefix) {
             // read less than minReadLenPrefix, no variable possible
-            final int drainCount = drain(target, targetIndex, targetLength);
-            targetIndex += drainCount;
-            final int targetSize = targetIndex - targetIndexIn;
-            return eos && targetSize <= 0 ? EOS : targetSize;
+            return drainCountHandler(targetIndex, targetIndexIn, targetLength, target);
         }
         if (eos) {
             // EOS
-            stringSubstitutor.replaceIn(buffer);
-            toDrain = buffer.size();
-            final int drainCount = drain(target, targetIndex, targetLength);
-            targetIndex += drainCount;
-            final int targetSize = targetIndex - targetIndexIn;
-            return eos && targetSize <= 0 ? EOS : targetSize;
+            return eosHandler(eos, buffer, stringSubstitutor, targetIndex, target, targetIndexIn, targetLength);
         }
         // PREFIX
         // buffer and drain until we find a variable start, escaped or plain.
         int balance = 0;
         final StringMatcher prefixMatcher = stringSubstitutor.getVariablePrefixMatcher();
         int pos = 0;
-        while (targetLength > 0) {
-            if (isBufferMatchAt(prefixMatcher, 0)) {
-                balance = 1;
-                pos = prefixMatcher.size();
-                break;
-            }
-            if (isBufferMatchAt(prefixEscapeMatcher, 0)) {
-                balance = 1;
-                pos = prefixEscapeMatcher.size();
-                break;
-            }
-            // drain first char
-            final int drainCount = drain(target, targetIndex, 1);
-            targetIndex += drainCount;
-            targetLength -= drainCount;
-            if (buffer.size() < minReadLenPrefix) {
-                readCount = bufferOrDrainOnEos(minReadLenPrefix, target, targetIndex, targetLength);
-                if (eos || isDraining()) {
-                    // if draining, readCount is a drain count
-                    if (readCount != EOS) {
-                        targetIndex += readCount;
-                        targetLength -= readCount;
-                    }
-                    final int actual = targetIndex - targetIndexIn;
-                    return actual > 0 ? actual : EOS;
-                }
-            }
+        Triple<Integer, Integer, Integer> triple = findVariableStart(target, targetIndex,
+                targetLength, minReadLenPrefix, targetIndexIn, readCount, prefixMatcher);
+        if (triple.getLeft() == null) {
+            return triple.getRight();
         }
+        targetIndex = triple.getLeft();
+        targetLength = triple.getMiddle();
         // we found a variable start
         if (targetLength <= 0) {
             // no more room in target
@@ -262,37 +230,50 @@ public class StringSubstitutorReader extends FilterReader {
         // buffer more to find a balanced suffix
         final StringMatcher suffixMatcher = stringSubstitutor.getVariableSuffixMatcher();
         final int minReadLenSuffix = Math.max(minReadLenPrefix, suffixMatcher.size());
-        readCount = buffer(readCount(minReadLenSuffix, pos));
+        buffer(readCount(minReadLenSuffix, pos));
         if (eos) {
             // EOS
-            stringSubstitutor.replaceIn(buffer);
-            toDrain = buffer.size();
-            final int drainCount = drain(target, targetIndex, targetLength);
-            return targetIndex + drainCount - targetIndexIn;
+            return eosHandler(eos, buffer, stringSubstitutor, targetIndex, target, targetIndexIn, targetLength);
         }
         // buffer and break out when we find the end or a balanced suffix
         while (true) {
-            if (isBufferMatchAt(suffixMatcher, pos)) {
-                balance--;
-                pos++;
-                if (balance == 0) {
-                    break;
-                }
-            } else if (isBufferMatchAt(prefixMatcher, pos)) {
-                balance++;
-                pos += prefixMatcher.size();
-            } else if (isBufferMatchAt(prefixEscapeMatcher, pos)) {
-                balance++;
-                pos += prefixEscapeMatcher.size();
-            } else {
-                pos++;
+            Result res = positionHandler(prefixMatcher, prefixEscapeMatcher, suffixMatcher, balance, pos);
+            if (res == null) {
+                break;
             }
+            pos = res.pos;
+            balance = res.balance;
             readCount = buffer(readCount(minReadLenSuffix, pos));
             if (readCount == EOS && pos >= buffer.size()) {
                 break;
             }
         }
         // substitute
+        return substituteHandler(pos, buffer, stringSubstitutor, targetIndex, target, targetIndexIn, targetLength);
+    }
+
+    private int eosHandler(final boolean eos, final TextStringBuilder buffer, final StringSubstitutor stringSubstitutor,
+                                  int targetIndex, final char[] target, final int targetIndexIn, final int targetLength) {
+        stringSubstitutor.replaceIn(buffer);
+        toDrain = buffer.size();
+        final int drainCount = drain(target, targetIndex, targetLength);
+        targetIndex += drainCount;
+        final int targetSize = targetIndex - targetIndexIn;
+        return eos && targetSize <= 0 ? EOS : targetSize;
+    }
+
+    private static int drainHandler(final int readCount, final TextStringBuilder buffer, int targetIndex,
+                                    final int targetIndexIn, int targetLength) {
+        if (readCount != EOS) {
+            targetIndex += readCount;
+            targetLength -= readCount;
+        }
+        final int actual = targetIndex - targetIndexIn;
+        return actual > 0 ? actual : EOS;
+    }
+
+    private int substituteHandler(int pos, final TextStringBuilder buffer, final StringSubstitutor stringSubstitutor,
+                                         int targetIndex, final char[] target, final int targetIndexIn, int targetLength) {
         final int endPos = pos + 1;
         final int leftover = Math.max(0, buffer.size() - pos);
         stringSubstitutor.replaceIn(buffer, 0, Math.min(buffer.size(), endPos));
@@ -304,6 +285,94 @@ public class StringSubstitutorReader extends FilterReader {
         return targetIndex - targetIndexIn + drainLen;
     }
 
+    private static boolean checkEosAndBuffer(final boolean eos, final TextStringBuilder buffer) {
+        return eos && buffer.isEmpty();
+    }
+
+    private boolean checkEosOrDrain(final boolean eos, final TextStringBuilder buffer) {
+        return eos || isDraining();
+    }
+
+    private Result positionHandler(final StringMatcher prefixMatcher, final StringMatcher prefixEscapeMatcher,
+                                   final StringMatcher suffixMatcher, int balance, int pos) {
+        if (isBufferMatchAt(suffixMatcher, pos)) {
+            balance--;
+            pos++;
+            if (balance == 0) {
+                return null;
+            }
+        } else if (isBufferMatchAt(prefixMatcher, pos)) {
+            balance++;
+            pos += prefixMatcher.size();
+        } else if (isBufferMatchAt(prefixEscapeMatcher, pos)) {
+            balance++;
+            pos += prefixEscapeMatcher.size();
+        } else {
+            pos++;
+        }
+
+        return new Result(balance, pos);
+    }
+
+    private int drainCountHandler(int targetIndex, final int targetIndexIn, int targetLength, final char[] target) {
+        final int drainCount = drain(target, targetIndex, targetLength);
+        targetIndex += drainCount;
+        final int targetSize = targetIndex - targetIndexIn;
+        return eos && targetSize <= 0 ? EOS : targetSize;
+    }
+
+    public Pair<Integer, Integer> isDrainingHandler(int targetIndex, int targetLength, final char[] target) {
+        if (isDraining()) {
+            // drain as much as possible
+            final int drainCount = drain(target, targetIndex, Math.min(toDrain, targetLength));
+            if (drainCount == targetLength) {
+                // drained length requested, target is full, can only do more in the next invocation
+                return Pair.of(null, targetLength);
+            }
+            // drained less than requested, target not full.
+            targetIndex += drainCount;
+            targetLength -= drainCount;
+        }
+
+        return Pair.of(targetIndex, targetLength);
+    }
+
+    private Triple<Integer, Integer, Integer> findVariableStart(final char[] target, int targetIndex, int targetLength, int minReadLenPrefix,
+                                                               int targetIndexIn, int readCount, final StringMatcher prefixMatcher) throws IOException {
+        int balance = 0;
+        int pos = 0;
+        while (targetLength > 0) {
+            if (isBufferMatchAt(prefixMatcher, 0)) {
+                Result res = balanceHandler(prefixMatcher, pos);
+                pos = res.pos;
+                balance = res.balance;
+                break;
+            }
+            if (isBufferMatchAt(prefixEscapeMatcher, 0)) {
+                Result res = balanceHandler(prefixMatcher, pos);
+                pos = res.pos;
+                balance = res.balance;
+                break;
+            }
+            // drain first char
+            final int drainCount = drain(target, targetIndex, 1);
+            targetIndex += drainCount;
+            targetLength -= drainCount;
+            if (buffer.size() < minReadLenPrefix) {
+                readCount = bufferOrDrainOnEos(minReadLenPrefix, target, targetIndex, targetLength);
+                if (checkEosOrDrain(eos, buffer)) {
+                    // if draining, readCount is a drain count
+                    int temp = drainHandler(readCount, buffer, targetIndex, targetIndexIn, targetLength);
+                    return Triple.of(null, null, temp);
+                }
+            }
+        }
+
+        return Triple.of(targetIndex, targetLength, null);
+
+    }
+
+
     /**
      * Returns how many chars to attempt reading to have room in the buffer for {@code count} chars starting at position
      * {@code pos}.
@@ -311,6 +380,24 @@ public class StringSubstitutorReader extends FilterReader {
     private int readCount(final int count, final int pos) {
         final int avail = buffer.size() - pos;
         return avail >= count ? 0 : count - avail;
+    }
+
+    private Result balanceHandler(StringMatcher prefixMatcher, int pos) {
+        int balance = 1;
+        pos = prefixMatcher.size();
+        return new Result(balance, pos);
+    }
+
+    class Result {
+        /** Position in the buffer. */
+        int pos;
+        /** Balance. */
+        int balance;
+
+        Result(int pos, int balance) {
+            this.pos = pos;
+            this.balance = balance;
+        }
     }
 
 }
