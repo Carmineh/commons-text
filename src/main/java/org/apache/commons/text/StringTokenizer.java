@@ -466,13 +466,12 @@ public class StringTokenizer implements ListIterator<String>, Cloneable {
      * list. If a {@link CloneNotSupportedException} is caught, return {@code null}.
      *
      * @return a new instance of this Tokenizer which has been reset.
-     */
-    @Override
+     */@Override
     public Object clone() {
         try {
             return cloneReset();
         } catch (final CloneNotSupportedException ex) {
-            return null;
+            return new StringTokenizer();
         }
     }
 
