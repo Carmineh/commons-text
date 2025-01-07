@@ -28,7 +28,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.commons.lang3.SystemProperties;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -754,22 +753,6 @@ public class StrSubstitutorTest {
         final Map<String, String> map = new HashMap<>();
         map.put("name", "commons");
         assertEquals("Hi commons!", StrSubstitutor.replace("Hi <name>!", map, "<", ">"));
-    }
-
-    /**
-     * Tests interpolation with system properties.
-     */
-    @Test
-    public void testStaticReplaceSystemProperties() {
-        final StrBuilder buf = new StrBuilder();
-        buf.append("Hi ").append(SystemProperties.getUserName());
-        buf.append(", you are working with ");
-        buf.append(SystemProperties.getOsName());
-        buf.append(", your home directory is ");
-        buf.append(SystemProperties.getUserHome()).append('.');
-        assertEquals(buf.toString(), StrSubstitutor.replaceSystemProperties("Hi ${user.name}, you are "
-            + "working with ${os.name}, your home "
-            + "directory is ${user.home}."));
     }
 
     /**

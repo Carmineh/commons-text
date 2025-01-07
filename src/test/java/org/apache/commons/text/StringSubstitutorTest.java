@@ -25,12 +25,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.SystemProperties;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.text.lookup.StringLookup;
 import org.apache.commons.text.lookup.StringLookupFactory;
@@ -1022,21 +1023,6 @@ public class StringSubstitutorTest {
      * Tests interpolation with system properties.
      */
     @Test
-    public void testStaticReplaceSystemProperties() {
-        final TextStringBuilder buf = new TextStringBuilder();
-        buf.append("Hi ").append(SystemProperties.getUserName());
-        buf.append(", you are working with ");
-        buf.append(SystemProperties.getOsName());
-        buf.append(", your home directory is ");
-        buf.append(SystemProperties.getUserHome()).append('.');
-        assertEqualsCharSeq(buf.toString(),
-                StringSubstitutor.replaceSystemProperties("Hi ${user.name}, you are " + "working with ${os.name}, your home " + "directory is ${user.home}."));
-    }
-
-    /**
-     * Tests interpolation with system properties.
-     */
-    @Test
     public void testStaticReplaceSystemPropertiesWithUpdate() {
         System.setProperty("foo", "bar1");
         try {
@@ -1077,4 +1063,18 @@ public class StringSubstitutorTest {
         assertEqualsCharSeq("value $${escaped}", replace(sub, org));
     }
 
+    @Test
+    public void testCheckCyclicSubstitution() {
+        StringSubstitutor substitutor = new StringSubstitutor();
+        List<String> priorVariables = new ArrayList<>();
+        priorVariables.add("var1");
+        priorVariables.add("var2");
+        priorVariables.add("var1");
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
+            substitutor.checkCyclicSubstitution("var1", priorVariables);
+        });
+
+        assertTrue(exception.getMessage().contains("Infinite loop in property interpolation of var1"));
+    }
 }

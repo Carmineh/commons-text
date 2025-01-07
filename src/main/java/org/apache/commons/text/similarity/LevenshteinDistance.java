@@ -251,7 +251,6 @@ public class LevenshteinDistance implements EditDistance<Integer> {
             }
         }
 
-        //Realiability Issue #1 - Probability of an ArrayIndexOutOfBound => SOLVED
         if (n >= 0 && n < p.length) {
             return p[n];
         } else {

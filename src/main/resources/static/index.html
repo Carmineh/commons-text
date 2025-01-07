@@ -1,0 +1,122 @@
+<!--
+  Licensed to the Apache Software Foundation (ASF) under one or more
+  contributor license agreements.  See the NOTICE file distributed with
+  this work for additional information regarding copyright ownership.
+  The ASF licenses this file to You under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with
+  the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apache Commons Text</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .container {
+            width: 80%;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+        .method-select, .input-field, .result {
+            margin-bottom: 15px;
+            width: 100%;
+        }
+        .button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+        }
+        .button:hover {
+            background-color: #45a049;
+        }
+        .result {
+            padding: 15px;
+            background-color: #f1f1f1;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Text Processing Test</h1>
+
+    <div>
+        <label for="methodSelect">Choose Method to Test:</label>
+        <select id="methodSelect" class="method-select">
+            <option value="wrap">wrap</option>
+            <option value="initials">initials</option>
+            <option value="capitalize">capitalize</option>
+            <option value="random">random</option>
+        </select>
+    </div>
+    <div>
+        <label for="inputText">Input Text:</label>
+        <textarea id="inputText" class="input-field" rows="4" placeholder="Enter text here..."></textarea>
+    </div>
+
+    <div>
+        <button id="runTest" class="button">Run Method</button>
+    </div>
+
+    <div id="result" class="result" style="display: none;"></div>
+</div>
+
+<script>
+    document.getElementById('runTest').addEventListener('click', function() {
+        var method = document.getElementById('methodSelect').value;
+        var inputText = document.getElementById('inputText').value;
+
+        var data = {
+            method: method,
+            inputText: inputText,
+        };
+
+        fetch('http://localhost:8080/run-method', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('result').style.display = 'block';
+                const result = data.result.replace(/\n/g, "<br>");
+                document.getElementById('result').innerHTML = 'Result: ' + result;
+                console.log(data.result)
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    });
+</script>
+
+</body>
+</html>

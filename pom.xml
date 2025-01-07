@@ -79,7 +79,12 @@
     <commons.jacoco.complexityRatio>0.8</commons.jacoco.complexityRatio>
     <commons.jacoco.lineRatio>0.8</commons.jacoco.lineRatio>
   </properties>
-
+  <repositories>
+    <repository>
+      <id>central</id>
+      <url>https://repo.maven.apache.org/maven2</url>
+    </repository>
+  </repositories>
   <dependencies>
     <dependency>
       <groupId>org.apache.commons</groupId>
@@ -169,7 +174,7 @@
                 </includes>
                 <excludes>
                   <exclude>**/jmh_generated/**</exclude>
-                  <exclude>**/*_jmhStub.class</exclude>  <!-- Exclude JMH stubs -->
+                  <exclude>**/*_jmhStub.class</exclude>
                 </excludes>
               </configuration>
             </execution>
@@ -215,6 +220,10 @@
               <exclude>src/test/resources/org/apache/commons/text/stringEscapeUtilsTestData.txt</exclude>
               <exclude>src/test/resources/org/apache/commons/text/lcs-perf-analysis-inputs.csv</exclude>
               <exclude>src/test/resources/org/apache/commons/text/oss-fuzz/**</exclude>
+              <exclude>src/main/java/org/apache/commons/text/DockerContainer.java</exclude>
+              <exclude>src/main/java/org/apache/commons/text/BenchmarkRunner.java</exclude>
+              <exclude>spotbugs-security-exclude.xml</exclude>
+              <exclude>spotbugs-security-include.xml</exclude>
             </excludes>
 
           </configuration>
@@ -285,7 +294,15 @@
             <manifestEntries>
               <Automatic-Module-Name>${commons.module.name}</Automatic-Module-Name>
             </manifestEntries>
+
+            <manifest>
+              <addClasspath>true</addClasspath>
+              <classpathPrefix>lib/</classpathPrefix>
+              <mainClass>org.apache.commons.text.DockerContainer</mainClass>
+            </manifest>
           </archive>
+
+
         </configuration>
       </plugin>
       <plugin>
@@ -302,6 +319,45 @@
         <artifactId>maven-javadoc-plugin</artifactId>
         <configuration>
           <source>${maven.compiler.source}</source>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <source>8</source>
+          <target>8</target>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.owasp</groupId>
+        <artifactId>dependency-check-maven</artifactId>
+        <version>11.1.1</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+        <version>4.0.4</version>
+        <configuration>
+          <effort>Max</effort>
+          <threshold>medium</threshold>
+          <failOnError>true</failOnError>
+          <includeFilterFile>${session.executionRootDirectory}/spotbugs-security-include.xml</includeFilterFile>
+          <excludeFilterFile>${session.executionRootDirectory}/spotbugs-security-exclude.xml</excludeFilterFile>
+          <plugins>
+            <plugin>
+              <groupId>com.h3xstream.findsecbugs</groupId>
+              <artifactId>findsecbugs-plugin</artifactId>
+              <version>1.12.0</version>
+            </plugin>
+          </plugins>
         </configuration>
       </plugin>
     </plugins>
@@ -526,6 +582,16 @@
           <scope>test</scope>
         </dependency>
         <dependency>
+          <groupId>org.apache.commons</groupId>
+          <artifactId>commons-lang3</artifactId>
+          <version>3.12.0</version>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.commons</groupId>
+          <artifactId>commons-lang3</artifactId>
+          <version>3.12.0</version>
+        </dependency>
+        <dependency>
           <groupId>org.graalvm.js</groupId>
           <artifactId>js</artifactId>
           <version>${graalvm.version}</version>
@@ -580,7 +646,8 @@
       <properties>
         <graalvm.version>24.1.1</graalvm.version>
         <commons.mockito.version>5.2.0</commons.mockito.version>
-      </properties>
+
+    </properties>
       <build>
         <plugins>
           <plugin>
@@ -628,7 +695,12 @@
           <version>${graalvm.version}</version>
           <scope>test</scope>
         </dependency>
-	  </dependencies>
+        <dependency>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-databind</artifactId>
+          <version>2.14.0</version>
+        </dependency>
+      </dependencies>
     </profile>
     <profile>
       <id>setup-checkout</id>
