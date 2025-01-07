@@ -192,6 +192,7 @@
               <exclude>src/test/resources/org/apache/commons/text/oss-fuzz/**</exclude>
               <exclude>src/main/java/org/apache/commons/text/DockerContainer.java</exclude>
               <exclude>src/main/java/org/apache/commons/text/BenchmarkRunner.java</exclude>
+              <exclude>spotbugs-report_2025_01_07.html</exclude>
             </excludes>
 
           </configuration>
