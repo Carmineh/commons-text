@@ -193,6 +193,7 @@
               <exclude>src/main/java/org/apache/commons/text/DockerContainer.java</exclude>
               <exclude>src/main/java/org/apache/commons/text/BenchmarkRunner.java</exclude>
               <exclude>spotbugs-report_2025_01_07.html</exclude>
+              <exclude>src/main/assembly/uber-jar.xml</exclude>
             </excludes>
 
           </configuration>
@@ -210,7 +211,14 @@
       <plugin>
         <groupId>org.pitest</groupId>
         <artifactId>pitest-maven</artifactId>
-        <version>1.9.11</version>
+        <version>1.15.2</version>
+        <dependencies>
+          <dependency>
+            <groupId>org.pitest</groupId>
+            <artifactId>pitest-junit5-plugin</artifactId>
+            <version>1.2.1</version>
+          </dependency>
+        </dependencies>
         <configuration>
           <targetClasses>
             <param>org.apache.commons.text.*</param>
@@ -218,6 +226,10 @@
           <targetTests>
             <param>org.apache.commons.text.*</param>
           </targetTests>
+          <excludedTestClasses>
+            <param>org.apache.commons.text.BenchmarkRunnerTest</param>
+          </excludedTestClasses>
+          <verbose>true</verbose>
         </configuration>
       </plugin>
       <plugin>
@@ -611,6 +623,29 @@
     </properties>
       <build>
         <plugins>
+          <plugin>
+            <groupId>org.pitest</groupId>
+            <artifactId>pitest-maven</artifactId>
+            <version>LATEST</version>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-assembly-plugin</artifactId>
+            <version>3.3.0</version>
+            <executions>
+              <execution>
+                <phase>package</phase>
+                <goals>
+                  <goal>single</goal>
+                </goals>
+                <configuration>
+                  <descriptors>
+                    <descriptor>src/main/assembly/uber-jar.xml</descriptor>
+                  </descriptors>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
           <plugin>
             <!-- For Java 23 -->
             <groupId>org.apache.maven.plugins</groupId>

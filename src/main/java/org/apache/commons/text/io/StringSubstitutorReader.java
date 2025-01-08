@@ -263,10 +263,9 @@ public class StringSubstitutorReader extends FilterReader {
     }
 
     private static int drainHandler(final int readCount, final TextStringBuilder buffer, int targetIndex,
-                                    final int targetIndexIn, int targetLength) {
+                                    final int targetIndexIn) {
         if (readCount != EOS) {
             targetIndex += readCount;
-            targetLength -= readCount;
         }
         final int actual = targetIndex - targetIndexIn;
         return actual > 0 ? actual : EOS;
@@ -362,7 +361,7 @@ public class StringSubstitutorReader extends FilterReader {
                 int readCount = bufferOrDrainOnEos(minReadLenPrefix, target, targetIndex, targetLength);
                 if (checkEosOrDrain(eos, buffer)) {
                     // if draining, readCount is a drain count
-                    int temp = drainHandler(readCount, buffer, targetIndex, targetIndexIn, targetLength);
+                    int temp = drainHandler(readCount, buffer, targetIndex, targetIndexIn);
                     return Triple.of(null, null, temp);
                 }
             }
