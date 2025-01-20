@@ -43,6 +43,7 @@
 Apache Commons Text
 ===================
 This is an University Project about the dependability of open source repository. In the "documents" folder you can take a view of the entire project workflow.
+
 ===================
 [![Java CI](https://github.com/apache/commons-text/actions/workflows/maven.yml/badge.svg)](https://github.com/apache/commons-text/actions/workflows/maven.yml)
 [![Maven Central](https://img.shields.io/maven-central/v/org.apache.commons/commons-text?label=Maven%20Central)](https://search.maven.org/artifact/org.apache.commons/commons-text)
